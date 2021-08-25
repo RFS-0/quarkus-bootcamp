@@ -3,6 +3,7 @@ package ch.open.resource;
 import ch.open.dto.FactResult;
 import ch.open.dto.NewFact;
 import ch.open.service.FactService;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -23,10 +24,14 @@ public class FactResource {
 
     @Inject
     FactService factService;
+    @Inject
+    MeterRegistry registry;
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public List<FactResult> getFacts(@DefaultValue("3") @QueryParam("limit") int limit) {
+        registry.counter("endpoint.facts.getFacts").increment();
+
         return factService.getFacts(limit);
     }
 
@@ -34,6 +39,8 @@ public class FactResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response addFact(NewFact newFact) {
+        registry.counter("endpoint.facts.addFact").increment();
+
         var factResult = factService.add(newFact);
 
         var location = UriBuilder.fromPath(Long.toString(factResult.id)).build();
@@ -44,6 +51,8 @@ public class FactResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getFactById(@PathParam("id") int id) {
+        registry.counter("endpoint.facts.getFactById").increment();
+
         return factService.getFactFor(id)
                 .map(fact -> Response.ok(fact).build())
                 .orElse(Response.status(Response.Status.NOT_FOUND).build());
