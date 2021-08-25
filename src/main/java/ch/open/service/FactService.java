@@ -2,43 +2,43 @@ package ch.open.service;
 
 import ch.open.dto.FactResult;
 import ch.open.dto.NewFact;
+import ch.open.repository.Fact;
+import ch.open.repository.FactRepository;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import javax.transaction.Transactional;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class FactService {
 
-    private final List<FactResult> facts = new CopyOnWriteArrayList<>();
+    @Inject
+    FactRepository factRepository;
 
     public List<FactResult> getFacts(int limit) {
-        if (limit < 1) {
-            throw new IllegalArgumentException();
-        }
-        var copy = new ArrayList<>(facts);
-        Collections.reverse(copy);
-        return copy.stream().limit(limit).collect(Collectors.toUnmodifiableList());
+        return factRepository.findLatest(limit).stream()
+                .map(FactResult::from)
+                .collect(Collectors.toUnmodifiableList());
     }
 
+    @Transactional
     public FactResult add(NewFact newFact) {
-        var fact = new FactResult(facts.size(), newFact.fact, LocalDateTime.now());
-        facts.add(fact);
-        return fact;
+        Fact fact = new Fact(newFact.fact, LocalDateTime.now());
+        fact.persist();
+        return FactResult.from(fact);
     }
 
+    @Transactional
     public void deleteAll() {
-        facts.clear();
+        factRepository.deleteAll();
     }
 
     public Optional<FactResult> getFactFor(long id) {
-        return facts.stream()
-                .filter(fact -> id == fact.id)
-                .findAny();
+        return factRepository.findByIdOptional(id)
+                .map(FactResult::from);
     }
 }
